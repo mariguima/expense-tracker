@@ -1,7 +1,7 @@
 from app import db
 from datetime import datetime
 
-class Expenses(db.Model):
+class Expense(db.Model):
     __tablename__ = "expenses"
 
     id = db.Column(db.Integer, primary_key=True)
