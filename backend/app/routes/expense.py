@@ -8,6 +8,8 @@ from app import db
 
 expense_bp = Blueprint("expense", __name__)
 
+# ================ CRUD OPERATIONS =======================================
+
 # show expense list
 @expense_bp.route("/expenses", methods=["GET"])
 @jwt_required()
@@ -145,4 +147,139 @@ def delete_expense(expense_id):
     db.session.commit()
     return jsonify({"message": "Expense deleted successfully"}), 200
 
+# ================== DASHBOARD OPERATIONS ======================================
+@expense_bp.route("/expenses/summary", methods=["GET"])
+@jwt_required()
+def get_summary():
+    user_id = int(get_jwt_identity())
+    month = request.args.get("month", type=int)
+    year = request.args.get("year", type=int)
+
+    if month is None or year is None:
+        return jsonify({"error": "Month and year are required"}), 400
+
+    if month < 1 or month > 12:
+        return jsonify({"error": "Month must be between 1 and 12"}), 400
+
+    start_date = date_type(year, month, 1)
+    if month == 12:
+        end_date = date_type(year + 1, 1, 1)
+    else:
+        end_date = date_type(year, month + 1, 1)
+
+    if month == 1:
+        previous_month_start_date = date_type(year - 1, 12, 1)
+    else:
+        previous_month_start_date = date_type(year, month - 1, 1)
+    previous_month_end_date = start_date
+
+    year_start_date = date_type(year, 1, 1)
+    year_end_date = date_type(year + 1, 1, 1)
+
+    # get total amount spent in the month
+    monthly_total = (
+        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
+        .filter(
+            Expense.user_id == user_id,
+            Expense.date >= start_date,
+            Expense.date < end_date,
+        )
+        .scalar()
+    )
+
+    # get previous month total expenses
+    previous_month_total = (
+        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
+        .filter(
+            Expense.user_id == user_id,
+            Expense.date >= previous_month_start_date,
+            Expense.date < previous_month_end_date,
+        )
+        .scalar()
+    )
+
+    # get date and amount spent thoughout the month
+    daily_rows = (
+        db.session.query(Expense.date, db.func.sum(Expense.amount))
+        .filter(
+            Expense.user_id == user_id,
+            Expense.date >= start_date,
+            Expense.date < end_date,
+        )
+        .group_by(Expense.date)
+        .order_by(Expense.date)
+        .all()
+    )
+
+    daily_expenses = [
+        {
+            "date": expense_date.isoformat(),
+            "total": str(total),
+        }
+        for expense_date, total in daily_rows
+    ]
+
+    yearly_rows = (
+        db.session.query(Expense.date, db.func.sum(Expense.amount))
+        .filter(
+            Expense.user_id == user_id,
+            Expense.date >= year_start_date,
+            Expense.date < year_end_date,
+        )
+        .group_by(Expense.date)
+        .all()
+    )
+
+    monthly_totals_by_month = {month_number: Decimal("0") for month_number in range(1, 13)}
+    for expense_date, total in yearly_rows:
+        monthly_totals_by_month[expense_date.month] += total
+
     
+
+    monthly_expenses = [
+        {
+            "month": month_number,
+            "total": str(total),
+        }
+        for month_number, total in monthly_totals_by_month.items()
+    ]
+
+    if previous_month_total == 0:
+        month_over_month_percentage = None
+    else:
+        month_over_month_percentage = ((monthly_total - previous_month_total) / previous_month_total) * 100
+
+    # get each category expenses
+    category_total = db.func.sum(Expense.amount)
+    category_rows = (
+        db.session.query(Expense.category, category_total)
+        .filter(
+            Expense.user_id == user_id,
+            Expense.date >= start_date,
+            Expense.date < end_date,
+        )
+        .group_by(Expense.category)
+        .order_by(category_total.desc())
+        .all()
+    )
+
+    category_expenses = [
+        {
+            "category": category,
+            "total": str(total),
+        }
+        for category, total in category_rows
+    ]
+
+    return jsonify({
+        "month": month,
+        "year": year,
+        "total": str(monthly_total),
+        "daily_expenses": daily_expenses,
+        "monthly_expenses": monthly_expenses,
+        "previous_month_total": str(previous_month_total),
+        "month_over_month_percentage": (
+            None if month_over_month_percentage is None else str(month_over_month_percentage)
+        ),
+        "category_expenses": category_expenses
+    }), 200

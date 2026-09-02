@@ -62,6 +62,3 @@ expense-tracker/
 ├── docker-compose.yml             # spins up Postgres (+ optionally backend)
 ├── .gitignore                      # root-level, covers both if needed
 └── README.md                       # project overview, setup instructions for both sides
-name = "Test User"
-email = "test@tes.com"
-password = "123"
