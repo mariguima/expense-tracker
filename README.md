@@ -62,3 +62,52 @@ expense-tracker/
 ├── docker-compose.yml             # spins up Postgres (+ optionally backend)
 ├── .gitignore                      # root-level, covers both if needed
 └── README.md                       # project overview, setup instructions for both sides
+
+name = "Test User"
+email = "test@tes.com"
+password = "123"
+
+
+$loginBody = @{
+    email = "test@tes.com"
+    password = "123"
+  } | ConvertTo-Json -Compress
+
+  $loginResponse = Invoke-RestMethod `
+    -Uri "http://127.0.0.1:5000/login" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $loginBody
+
+  $token = $loginResponse.access_token
+
+
+ Invoke-RestMethod `
+    -Uri "http://127.0.0.1:5000/expenses/summary?month=8&year=2026" `
+    -Method GET `
+    -Headers @{ Authorization = "Bearer $token" }
+
+
+
+    $newExpense = @{
+    amount = 40
+    category = "Food"
+    date = "2026-08-05"
+    payment_type = "Debit Card"
+    number_of_installments = 1
+    description = "Lunch"
+  } | ConvertTo-Json -Compress
+
+  Invoke-RestMethod `
+    -Uri "http://127.0.0.1:5000/expenses" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Headers @{ Authorization = "Bearer $token" } `
+    -Body $newExpense
+
+
+    Invoke-RestMethod `
+    -Uri "http://127.0.0.1:5000/expenses/summary?month=9&year=2026" `
+    -Method GET `
+    -Headers @{ Authorization = "Bearer $token" } |
+  ConvertTo-Json -Depth 5

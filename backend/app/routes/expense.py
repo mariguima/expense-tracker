@@ -1,33 +1,31 @@
 from datetime import date as date_type
 from decimal import Decimal, InvalidOperation
 
+from marshmallow import ValidationError
 from flask import jsonify, request, Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.expense import Expense
 from app import db
+from app.utils.expense_helpers import applies_to_month, get_installment_date, calculate_monthly_total, get_expense_amount_for_month, get_expenses_until_month
+from app.schemas.expense_schema import ExpenseCreateSchema, ExpenseSchema, ExpenseUpdateSchema
 
 expense_bp = Blueprint("expense", __name__)
+
+# schemas
+expense_create_schema = ExpenseCreateSchema()
+expense_update_schema = ExpenseUpdateSchema()
+expense_schema = ExpenseSchema()
+expenses_schema = ExpenseSchema(many=True)
 
 # ================ CRUD OPERATIONS =======================================
 
 # show expense list
 @expense_bp.route("/expenses", methods=["GET"])
 @jwt_required()
-def expense_page():
+def get_expense():
     user_id = int(get_jwt_identity())
     expenses = Expense.query.filter_by(user_id=user_id).all()
-    result = [
-        {
-            "id": e.id,
-            "amount": str(e.amount),
-            "category": e.category,
-            "date": e.date.isoformat(),
-            "payment_type": e.payment_type,
-            "number_of_installments": e.number_of_installments,
-            "description": e.description,
-        }
-        for e in expenses
-    ]
+    result = expenses_schema.dump(expenses)
 
     return jsonify(result), 200
 
@@ -36,40 +34,20 @@ def expense_page():
 @jwt_required()
 def post_expense():
     user_id = int(get_jwt_identity())
-    data = request.get_json() or {}
-
-    amount = data.get("amount")
-    category = data.get("category")
-    date = data.get("date")
-    payment_type = data.get("payment_type")
-    number_of_installments = data.get("number_of_installments")
-    description = data.get("description")
-
-    if amount is None or not category or not date or not payment_type or number_of_installments is None:
-        return jsonify({"error": "Amount, category, date, payment type and number of installments are required"}), 400
-
     try:
-        amount = Decimal(str(amount))
-    except (InvalidOperation, ValueError):
-        return jsonify({"error": "Amount must be a valid number"}), 400
+        data = expense_create_schema.load(request.get_json() or {})
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
 
-    if amount <= 0:
-        return jsonify({"error": "Amount must be greater than zero"}), 400
-
-    try:
-        date = date_type.fromisoformat(date)
-    except (TypeError, ValueError):
-        return jsonify({"error": "Date must use YYYY-MM-DD format"}), 400
-
-    try:
-        number_of_installments = int(number_of_installments)
-    except (TypeError, ValueError):
-        return jsonify({"error": "Number of installments must be an integer"}), 400
-
-    if number_of_installments <= 0:
-        return jsonify({"error": "Number of installments must be greater than zero"}), 400
-
-    new_expense = Expense(user_id=user_id, amount=amount, category=category, date=date, payment_type=payment_type, number_of_installments=number_of_installments, description=description)
+    new_expense = Expense(
+        user_id=user_id, 
+        amount=data["amount"], 
+        category=data["category"], 
+        date=data["date"], 
+        payment_type=data["payment_type"], 
+        number_of_installments=data["number_of_installments"], 
+        description=data["description"]
+    )
 
     db.session.add(new_expense)
     db.session.commit()
@@ -81,57 +59,20 @@ def post_expense():
 @jwt_required()
 def patch_expense(expense_id):
     user_id = int(get_jwt_identity())
-    data = request.get_json() or {}
     expense = Expense.query.filter_by(user_id=user_id, id=expense_id).first()
-
     if expense is None:
         return jsonify({"error": "Expense not found"}), 404
 
-    if "amount" in data:
-        try:
-            amount = Decimal(str(data["amount"]))
-        except (InvalidOperation, ValueError):
-            return jsonify({"error": "Amount must be a valid number"}), 400
+    try:
+        data = expense_update_schema.load(request.get_json() or {})
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
 
-        if amount <= 0:
-            return jsonify({"error": "Amount must be greater than zero"}), 400
-
-        expense.amount = amount
-
-    if "category" in data:
-        if not data["category"]:
-            return jsonify({"error": "Category cannot be empty"}), 400
-        expense.category = data["category"]
-
-    if "date" in data:
-        try:
-            expense.date = date_type.fromisoformat(data["date"])
-        except (TypeError, ValueError):
-            return jsonify({"error": "Date must use YYYY-MM-DD format"}), 400
-
-    if "payment_type" in data:
-        if not data["payment_type"]:
-            return jsonify({"error": "Payment type cannot be empty"}), 400
-        expense.payment_type = data["payment_type"]
-
-    if "number_of_installments" in data:
-        try:
-            number_of_installments = int(data["number_of_installments"])
-        except (TypeError, ValueError):
-            return jsonify({"error": "Number of installments must be an integer"}), 400
-
-        if number_of_installments <= 0:
-            return jsonify({"error": "Number of installments must be greater than zero"}), 400
-
-        expense.number_of_installments = number_of_installments
-
-    if "description" in data:
-        expense.description = data["description"]
+    for field, value in data.items():
+        setattr(expense, field, value)
 
     db.session.commit()
-    return jsonify({"message": "Expense updated successfully"}), 200
-
-
+    return jsonify({"message": "Expense updated successfully", "expense": expense_schema.dump(expense)}), 200
 
 # delete an expense
 @expense_bp.route("/expenses/<int:expense_id>", methods=["DELETE"])
@@ -139,7 +80,6 @@ def patch_expense(expense_id):
 def delete_expense(expense_id):
     user_id = int(get_jwt_identity())
     expense = Expense.query.filter_by(user_id=user_id, id=expense_id).first()
-
     if expense is None:
         return jsonify({"error": "Expense not found"}), 404
 
@@ -147,7 +87,7 @@ def delete_expense(expense_id):
     db.session.commit()
     return jsonify({"message": "Expense deleted successfully"}), 200
 
-# ================== DASHBOARD OPERATIONS ======================================
+# ================== DASHBOARD ======================================
 @expense_bp.route("/expenses/summary", methods=["GET"])
 @jwt_required()
 def get_summary():
@@ -168,73 +108,77 @@ def get_summary():
         end_date = date_type(year, month + 1, 1)
 
     if month == 1:
-        previous_month_start_date = date_type(year - 1, 12, 1)
+        previous_month = 12
+        previous_month_year = year - 1
     else:
-        previous_month_start_date = date_type(year, month - 1, 1)
+        previous_month = month - 1
+        previous_month_year = year
     previous_month_end_date = start_date
 
     year_start_date = date_type(year, 1, 1)
     year_end_date = date_type(year + 1, 1, 1)
 
-    # get total amount spent in the month
-    monthly_total = (
-        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
+    # get total amount spent in the month, including active credit installments
+    monthly_total = calculate_monthly_total(Expense, user_id, end_date, year, month)
+    expenses_for_monthly_total = get_expenses_until_month(Expense, user_id, end_date)
+
+    # get previous month total expenses and credit installments
+    previous_month_total = calculate_monthly_total(Expense, user_id, previous_month_end_date, previous_month_year, previous_month)
+
+    # get daily totals for the selected month, including credit installment dates
+    expenses_for_daily_totals = (
+        Expense.query
         .filter(
             Expense.user_id == user_id,
-            Expense.date >= start_date,
             Expense.date < end_date,
         )
-        .scalar()
-    )
-
-    # get previous month total expenses
-    previous_month_total = (
-        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
-        .filter(
-            Expense.user_id == user_id,
-            Expense.date >= previous_month_start_date,
-            Expense.date < previous_month_end_date,
-        )
-        .scalar()
-    )
-
-    # get date and amount spent thoughout the month
-    daily_rows = (
-        db.session.query(Expense.date, db.func.sum(Expense.amount))
-        .filter(
-            Expense.user_id == user_id,
-            Expense.date >= start_date,
-            Expense.date < end_date,
-        )
-        .group_by(Expense.date)
-        .order_by(Expense.date)
         .all()
     )
+
+    daily_totals = {}
+    for expense in expenses_for_daily_totals:
+        if expense.payment_type.lower() == "credit":
+            installment_amount = expense.amount / expense.number_of_installments
+
+            for installment_index in range(expense.number_of_installments):
+                installment_date = get_installment_date(expense.date, installment_index)
+
+                if start_date <= installment_date < end_date:
+                    daily_totals[installment_date] = (
+                        daily_totals.get(installment_date, Decimal("0")) + installment_amount
+                    )
+        elif start_date <= expense.date < end_date:
+            daily_totals[expense.date] = daily_totals.get(expense.date, Decimal("0")) + expense.amount
 
     daily_expenses = [
         {
             "date": expense_date.isoformat(),
             "total": str(total),
         }
-        for expense_date, total in daily_rows
+        for expense_date, total in sorted(daily_totals.items())
     ]
 
-    yearly_rows = (
-        db.session.query(Expense.date, db.func.sum(Expense.amount))
+    monthly_totals_by_month = {month_number: Decimal("0") for month_number in range(1, 13)}
+    expenses_for_yearly_totals = (
+        Expense.query
         .filter(
             Expense.user_id == user_id,
-            Expense.date >= year_start_date,
             Expense.date < year_end_date,
         )
-        .group_by(Expense.date)
         .all()
     )
 
-    monthly_totals_by_month = {month_number: Decimal("0") for month_number in range(1, 13)}
-    for expense_date, total in yearly_rows:
-        monthly_totals_by_month[expense_date.month] += total
+    for expense in expenses_for_yearly_totals:
+        if expense.payment_type.lower() == "credit":
+            installment_amount = expense.amount / expense.number_of_installments
 
-    
+            for installment_index in range(expense.number_of_installments):
+                installment_date = get_installment_date(expense.date, installment_index)
+
+                if year_start_date <= installment_date < year_end_date:
+                    monthly_totals_by_month[installment_date.month] += installment_amount
+        elif year_start_date <= expense.date < year_end_date:
+            monthly_totals_by_month[expense.date.month] += expense.amount
 
     monthly_expenses = [
         {
@@ -249,26 +193,27 @@ def get_summary():
     else:
         month_over_month_percentage = ((monthly_total - previous_month_total) / previous_month_total) * 100
 
-    # get each category expenses
-    category_total = db.func.sum(Expense.amount)
-    category_rows = (
-        db.session.query(Expense.category, category_total)
-        .filter(
-            Expense.user_id == user_id,
-            Expense.date >= start_date,
-            Expense.date < end_date,
+    # get each category total for the selected month, including credit installments
+    category_totals = {}
+    for expense in expenses_for_monthly_total:
+        if not applies_to_month(expense, year, month):
+            continue
+
+        amount = get_expense_amount_for_month(expense)
+        category_totals[expense.category] = (
+            category_totals.get(expense.category, Decimal("0")) + amount
         )
-        .group_by(Expense.category)
-        .order_by(category_total.desc())
-        .all()
-    )
 
     category_expenses = [
         {
             "category": category,
             "total": str(total),
         }
-        for category, total in category_rows
+        for category, total in sorted(
+            category_totals.items(),
+            key=lambda category_total: category_total[1],
+            reverse=True,
+        )
     ]
 
     return jsonify({

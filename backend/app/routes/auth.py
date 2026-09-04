@@ -1,25 +1,30 @@
-# app/routes/auth.py
-
 from flask import Blueprint, request, jsonify
 from app import db, bcrypt
 from app.models.user import User
 from flask_jwt_extended import create_access_token
+from marshmallow import ValidationError
+from app.schemas.user_schema import UserCreateSchema, UserLoginSchema, UserSchema
+from sqlalchemy import select
 
 auth_bp = Blueprint("auth", __name__)
+user_schema = UserSchema()
+user_create_schema = UserCreateSchema()
+user_login_schema = UserLoginSchema()
 
 
 # create user in signup page
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
-    name = data.get("name")
+    try:
+        data = user_create_schema.load(request.get_json() or {})
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
 
-    if not email or not password or not name:
-        return jsonify({"error": "Email, name and password are required"}), 400
+    email = data["email"]
+    password = data["password"]
+    name = data["name"]
 
-    existing_user = User.query.filter_by(email=email).first()
+    existing_user = db.session.execute(select(User).filter_by(email=email)).scalar_one_or_none()
     if existing_user is not None:
         return jsonify({"error": "An account with this email already exists"}), 409
 
@@ -29,20 +34,27 @@ def signup():
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({"message": "User created successfully", "user_id": new_user.id}), 201
+    return jsonify({
+          "message": "User created successfully",
+          "user": user_schema.dump(new_user),
+      }), 201
 
 
 # login of user
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
+    try:
+        data = user_login_schema.load(request.get_json() or {})
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
 
-    user = User.query.filter_by(email=email).first()
+    email = data["email"]
+    password = data["password"]
+
+    user = db.session.execute(select(User).filter_by(email=email)).scalar_one_or_none()
 
     if user is None or not bcrypt.check_password_hash(user.password_hash, password):
         return jsonify({"error": "Invalid email or password"}), 401
 
     access_token = create_access_token(identity=str(user.id))
-    return jsonify({"access_token": access_token, "user_id": user.id}), 200
+    return jsonify({"access_token": access_token, "user": user_schema.dump(user)}), 200
