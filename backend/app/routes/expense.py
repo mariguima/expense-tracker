@@ -122,19 +122,13 @@ def get_summary():
     monthly_total = calculate_monthly_total(Expense, user_id, end_date, year, month)
     expenses_for_monthly_total = get_expenses_until_month(Expense, user_id, end_date)
 
+
     # get previous month total expenses and credit installments
     previous_month_total = calculate_monthly_total(Expense, user_id, previous_month_end_date, previous_month_year, previous_month)
 
-    # get daily totals for the selected month, including credit installment dates
-    expenses_for_daily_totals = (
-        Expense.query
-        .filter(
-            Expense.user_id == user_id,
-            Expense.date < end_date,
-        )
-        .all()
-    )
 
+    # get daily totals for the selected month, including credit installment dates
+    expenses_for_daily_totals = get_expenses_until_month(Expense, user_id, end_date)
     daily_totals = {}
     for expense in expenses_for_daily_totals:
         if expense.payment_type.lower() == "credit":
@@ -159,14 +153,7 @@ def get_summary():
     ]
 
     monthly_totals_by_month = {month_number: Decimal("0") for month_number in range(1, 13)}
-    expenses_for_yearly_totals = (
-        Expense.query
-        .filter(
-            Expense.user_id == user_id,
-            Expense.date < year_end_date,
-        )
-        .all()
-    )
+    expenses_for_yearly_totals = get_expenses_until_month(Expense, user_id, year_end_date)
 
     for expense in expenses_for_yearly_totals:
         if expense.payment_type.lower() == "credit":
