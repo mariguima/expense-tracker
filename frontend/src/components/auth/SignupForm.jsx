@@ -1,81 +1,53 @@
 import { useState } from "react";
-import { signup } from "../../api/authApi";
-import Button from "../ui/Button";
-import Input from "../ui/Input";
+import { signup } from "../../api/authApi.js";
+import Button from "../ui/Button.jsx";
+import Input from "../ui/Input.jsx";
 
-function SignupForm({ onSignupSuccess }) {
-    const [name, setName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState(null);
-    const [processing, setProcessing] = useState(false);
+export default function SignupForm({ onSignupSuccess }) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
-    const onSubmit = async (e) => {
-        e.preventDefault();
-        setProcessing(true);
-        setError(null);
+  const onSubmit = async (event) => {
+    event.preventDefault();
+    setProcessing(true);
+    setError(null);
+    try {
+      const data = await signup({ name: `${firstName.trim()} ${lastName.trim()}`, email, password });
+      onSignupSuccess?.(data);
+    } catch (err) {
+      const responseError = err.response?.data?.error || err.response?.data?.errors;
+      setError(responseError ? JSON.stringify(responseError) : err.message || "Unable to create your account.");
+    } finally {
+      setProcessing(false);
+    }
+  };
 
-        try {
-            const data = await signup({ name, email, password });
-            setName("");
-            setEmail("");
-            setPassword("");
-            setError(null);
-            onSignupSuccess?.(data);
-        } catch (err) {
-            const responseError = err.response?.data?.error || err.response?.data?.errors;
-            setError(responseError ? JSON.stringify(responseError) : err.message || "Unable to sign up.");
-        } finally {
-            setProcessing(false);
-        }
-    };
-
-    return (
-        <form id="signupForm" onSubmit={onSubmit}>
-            <h1>Sign Up</h1>
-
-            <label htmlFor="name">Name</label>
-            <Input
-                id="name"
-                name="name"
-                type="text"
-                value={name}
-                required
-                disabled={processing}
-                onChange={(e) => setName(e.currentTarget.value)}
-            />
-
-            <label htmlFor="email">Email</label>
-            <Input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
-                required
-                disabled={processing}
-                autoComplete="email"
-                onChange={(e) => setEmail(e.currentTarget.value)}
-            />
-
-            <label htmlFor="password">Password</label>
-            <Input
-                id="password"
-                name="password"
-                type="password"
-                value={password}
-                required
-                disabled={processing}
-                autoComplete="new-password"
-                onChange={(e) => setPassword(e.currentTarget.value)}
-            />
-
-            {error && <p role="alert">{error}</p>}
-
-            <Button type="submit" disabled={processing}>
-                {processing ? "Creating account..." : "Sign Up"}
-            </Button>
-        </form>
-    );
+  return (
+    <form className="auth-form signup-form" onSubmit={onSubmit}>
+      <div className="auth-name-row">
+        <div className="form-field">
+          <label className="label" htmlFor="firstName">First name</label>
+          <Input id="firstName" name="firstName" value={firstName} required disabled={processing} autoComplete="given-name" placeholder="Maria" onChange={(event) => setFirstName(event.currentTarget.value)} />
+        </div>
+        <div className="form-field">
+          <label className="label" htmlFor="lastName">Last name</label>
+          <Input id="lastName" name="lastName" value={lastName} required disabled={processing} autoComplete="family-name" placeholder="Silva" onChange={(event) => setLastName(event.currentTarget.value)} />
+        </div>
+      </div>
+      <div className="form-field">
+        <label className="label" htmlFor="email">Email address</label>
+        <Input id="email" name="email" type="email" value={email} required disabled={processing} autoComplete="email" placeholder="you@example.com" onChange={(event) => setEmail(event.currentTarget.value)} />
+      </div>
+      <div className="form-field">
+        <label className="label" htmlFor="password">Create a password</label>
+        <Input id="password" name="password" type="password" value={password} required disabled={processing} autoComplete="new-password" placeholder="At least 8 characters" onChange={(event) => setPassword(event.currentTarget.value)} />
+      </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <Button className="auth-submit" type="submit" disabled={processing}>{processing ? "Creating your account…" : "Create account"}<span aria-hidden="true">→</span></Button>
+    </form>
+  );
 }
-
-export default SignupForm;

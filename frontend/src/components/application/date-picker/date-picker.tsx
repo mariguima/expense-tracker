@@ -1,0 +1,94 @@
+import { getLocalTimeZone, today } from "@internationalized/date";
+import { useControlledState } from "@react-stately/utils";
+import { Calendar as CalendarIcon } from "@untitledui/icons";
+import { useDateFormatter } from "react-aria";
+import type { DatePickerProps as AriaDatePickerProps, DateValue } from "react-aria-components";
+import { DatePicker as AriaDatePicker, Dialog as AriaDialog, Group as AriaGroup, Popover as AriaPopover } from "react-aria-components";
+import { Button, type ButtonProps } from "@/components/base/buttons/button";
+import { cx } from "@/utils/cx";
+import { Calendar } from "./calendar";
+
+const highlightedDates = [today(getLocalTimeZone())];
+
+interface DatePickerProps extends AriaDatePickerProps<DateValue> {
+    /** The function to call when the apply button is clicked. */
+    onApply?: () => void;
+    /** The function to call when the cancel button is clicked. */
+    onCancel?: () => void;
+    /** Controls the size of the trigger button that opens the calendar. */
+    size?: ButtonProps["size"];
+    /** Class name for the calendar trigger. */
+    triggerClassName?: string;
+}
+
+export const DatePicker = ({ value: valueProp, defaultValue, onChange, onApply, onCancel, size = "sm", triggerClassName, ...props }: DatePickerProps) => {
+    const formatter = useDateFormatter({
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+    const [value, setValue] = useControlledState(valueProp, defaultValue || null, onChange);
+
+    const formattedDate = value ? formatter.format(value.toDate(getLocalTimeZone())) : "Select date";
+
+    return (
+        <AriaDatePicker aria-label="Date picker" shouldCloseOnSelect={false} {...props} value={value} onChange={setValue}>
+            <AriaGroup>
+                {({ isInvalid }) => (
+                    <Button size={size} color="secondary" iconLeading={CalendarIcon} className={cx("app-date-trigger", triggerClassName, isInvalid && "ring-error_subtle outline-error")}>
+                        {formattedDate}
+                    </Button>
+                )}
+            </AriaGroup>
+            <AriaPopover
+                offset={8}
+                placement="bottom start"
+                shouldFlip={false}
+                containerPadding={12}
+                className={({ isEntering, isExiting }) =>
+                    cx(
+                        "app-date-popover origin-(--trigger-anchor-point) will-change-transform",
+                        isEntering &&
+                            "duration-150 ease-out animate-in fade-in placement-right:slide-in-from-left-0.5 placement-top:slide-in-from-bottom-0.5 placement-bottom:slide-in-from-top-0.5",
+                        isExiting &&
+                            "duration-100 ease-in animate-out fade-out placement-right:slide-out-to-left-0.5 placement-top:slide-out-to-bottom-0.5 placement-bottom:slide-out-to-top-0.5",
+                    )
+                }
+            >
+                <AriaDialog aria-label="Date picker" className="app-date-dialog rounded-2xl bg-primary shadow-xl ring ring-secondary_alt">
+                    {({ close }) => (
+                        <>
+                            <div className="flex px-3 py-2">
+                                <Calendar highlightedDates={highlightedDates} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 border-t border-secondary p-2">
+                                <Button
+                                    size="sm"
+                                    color="secondary"
+                                    className="app-date-action"
+                                    onClick={() => {
+                                        onCancel?.();
+                                        close();
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    color="primary"
+                                    className="app-date-action app-date-apply"
+                                    onClick={() => {
+                                        onApply?.();
+                                        close();
+                                    }}
+                                >
+                                    Apply
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </AriaDialog>
+            </AriaPopover>
+        </AriaDatePicker>
+    );
+};

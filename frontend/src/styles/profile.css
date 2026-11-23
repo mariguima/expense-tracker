@@ -1,0 +1,49 @@
+.settings-page { width: min(100%, 1080px); margin: 0 auto; }
+.settings-page form { display: grid; gap: 17px; }
+.settings-card { padding: 27px 28px 28px; border: 1px solid #efedec; border-radius: 18px; background: #fff; box-shadow: var(--shadow); }
+.settings-card-heading h2 { margin: 0 0 3px; color: var(--ink); font: 750 16px/1.3 'Manrope', sans-serif; }
+.settings-card-heading p { margin: 0; color: var(--muted); font-size: 10px; }
+.settings-photo-row { display: flex; align-items: center; gap: 19px; margin-top: 21px; padding: 18px 0; border-top: 1px solid #f3f0ef; border-bottom: 1px solid #f3f0ef; }
+.settings-avatar { width: 68px; height: 68px; flex: 0 0 68px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: #fbd4da; color: #a72c43; font: 750 27px/1 'Manrope', sans-serif; }
+.settings-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.settings-photo-actions { min-width: 0; }
+.settings-photo-buttons { display: flex; gap: 7px; }
+.settings-photo-buttons .app-button { min-height: 33px; border: 1px solid #ece6e5; background: #fff; color: var(--ink); }
+.settings-photo-buttons .app-button:last-child { color: #c83e56; }
+.settings-photo-actions p { margin: 6px 0 0; color: var(--muted); font-size: 10px; }
+.settings-file-input { display: none; }
+.settings-profile-fields { display: grid; gap: 14px; margin-top: 19px; }
+.settings-two-columns, .settings-finance-columns { display: grid; gap: 15px; }
+.settings-two-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-finance-columns { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 22px; }
+.settings-page .form-field { gap: 6px; }
+.settings-page .label { font-size: 10px; }
+.settings-page .app-input-shell, .settings-page .app-input, .settings-page .app-select > button { height: 39px; min-height: 39px; }
+.settings-page .app-input { font-size: 11px; }
+.settings-budget-input { position: relative; }
+.settings-budget-input > span { position: absolute; z-index: 1; top: 50%; left: 11px; transform: translateY(-50%); color: var(--ink); font-size: 11px; pointer-events: none; }
+.settings-budget-input .app-input { padding-left: 24px; appearance: textfield; -moz-appearance: textfield; }
+.settings-budget-input .app-input::-webkit-inner-spin-button, .settings-budget-input .app-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.settings-error { color: var(--rose-deep); font-size: 10px; }
+.settings-field-hint { color: var(--muted); font-size: 9px; line-height: 1.3; }
+.settings-switches { margin-top: 19px; border-top: 1px solid #f3f0ef; }
+.settings-switch-row { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 15px; min-height: 57px; border-bottom: 1px solid #f3f0ef; cursor: pointer; }
+.settings-switch-row:last-child { border-bottom: 0; }
+.settings-switch-row span { display: grid; gap: 2px; }
+.settings-switch-row strong { color: var(--ink); font-size: 10px; font-weight: 600; }
+.settings-switch-row small { color: var(--muted); font-size: 9px; }
+.settings-switch-row input { position: absolute; right: 0; width: 35px; height: 20px; opacity: 0; cursor: pointer; }
+.settings-switch-row i { width: 35px; height: 20px; flex: 0 0 35px; border-radius: 20px; background: #d9d4d3; transition: background .18s; pointer-events: none; }
+.settings-switch-row i::after { content: ''; display: block; width: 16px; height: 16px; margin: 2px; border-radius: 50%; background: #fff; transition: transform .18s; }
+.settings-switch-row input:checked + i { background: #ce3e56; }
+.settings-switch-row input:checked + i::after { transform: translateX(15px); }
+.settings-switch-row input:focus-visible + i { outline: 2px solid var(--rose); outline-offset: 2px; }
+.settings-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.settings-actions .app-button { min-height: 34px; }
+.settings-actions .app-button:first-of-type { border: 1px solid #ece6e5; background: #fff; color: var(--ink); }
+.settings-actions .app-button:last-child { background: var(--rose-deep); color: #fff; box-shadow: none; transition: background .18s ease; }
+.settings-actions .app-button:last-child:hover { background: #ca5265; box-shadow: none; }
+.settings-notice { margin-right: auto; color: var(--green); font-size: 10px; }
+@media (max-width: 1050px) { .settings-finance-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .settings-page { max-width: 520px; } .settings-card { padding: 22px 18px; } }
+@media (max-width: 430px) { .settings-two-columns, .settings-finance-columns { grid-template-columns: 1fr; } }

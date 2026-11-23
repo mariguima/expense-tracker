@@ -10,9 +10,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.4",
+    "@react-stately/utils": "^3.12.1",
+    "@tailwindcss/vite": "^4.3.5",
+    "@untitledui/icons": "^0.0.23",
     "axios": "^1.20.0",
+    "input-otp": "^1.5.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-aria": "^3.53.1",
+    "react-aria-components": "^1.22.1",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3",
+    "recharts": "^3.11.0",
+    "tailwind-merge": "^3.7.1",
+    "tailwindcss": "^4.3.5",
+    "tailwindcss-animate": "^1.0.7",
+    "tailwindcss-react-aria-components": "^2.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,23 +1,17 @@
-import "./Button.css";
+import { Button as UntitledButton } from "../base/buttons/button";
 
-export default function Button({
-    children,
-    type = "button",
-    variant = "primary",
-    size = "md",
-    disabled = false,
-    onClick
-}) {
-    return(
-        <button
-            type={type}
-            className={`btn btn-${variant} btn-${size}`}
-            disabled={disabled}
-            onClick={onClick}
-        >
-            {children}
-        </button>
-    )
+export default function Button({ children, type = "button", variant = "primary", size = "sm", disabled = false, className = "", onClick, ...props }) {
+  return (
+    <UntitledButton
+      type={type}
+      color={variant}
+      size={size}
+      isDisabled={disabled}
+      className={`app-button ${className}`.trim()}
+      onPress={onClick}
+      {...props}
+    >
+      {children}
+    </UntitledButton>
+  );
 }
-
-
