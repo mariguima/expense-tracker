@@ -1,70 +1,102 @@
 import { categoryColors } from "./categoryColors.js";
+import { loadProfile } from "./profileSettings.js";
 
-const monthlyTotals = [1186, 1320, 1282, 1410, 1175, 1328, 1399.35, 1284.6];
-
-export const categoryBreakdown = [
-  { name: "Home", amount: 720, color: categoryColors.Home.chart },
-  { name: "Food & dining", amount: 182.1, color: categoryColors["Food & dining"].chart },
-  { name: "Shopping", amount: 179.99, color: categoryColors.Shopping.chart },
-  { name: "Transport", amount: 85.5, color: categoryColors.Transport.chart },
-  { name: "Bills", amount: 117.01, color: categoryColors.Bills.chart },
-];
-
-export const money = (value) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
-
-const dayKey = (year, month, day) => `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-export const dailySpending = monthlyTotals.flatMap((target, monthIndex) => {
-  const month = monthIndex + 1;
-  const days = new Date(2026, month, 0).getDate();
-  const weights = Array.from({ length: days }, (_, index) => 18 + ((index * 17 + month * 11) % 44) + (index % 7 === 0 ? 14 : 0));
-  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
-  let allocated = 0;
-
-  return weights.map((weight, index) => {
-    const amount = index === days - 1 ? Number((target - allocated).toFixed(2)) : Number((target * weight / weightTotal).toFixed(2));
-    allocated += amount;
-    return { date: dayKey(2026, month, index + 1), amount };
-  });
-});
-
-const shiftDate = (isoDate, days) => {
-  const date = new Date(`${isoDate}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
+export const money = (value) => {
+  const { currency, roundAmounts } = loadProfile();
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: ["GBP", "EUR", "USD"].includes(currency) ? currency : "GBP",
+    minimumFractionDigits: roundAmounts ? 0 : 2,
+    maximumFractionDigits: roundAmounts ? 0 : 2,
+  }).format(Number(value) || 0);
 };
 
-const daysBetween = (start, end) => Math.max(1, Math.round((new Date(`${end}T12:00:00Z`) - new Date(`${start}T12:00:00Z`)) / 86400000) + 1);
+const iso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const asDate = (value) => new Date(`${value}T12:00:00Z`);
+const daysBetween = (start, end) => Math.round((asDate(end) - asDate(start)) / 86400000) + 1;
 
-export function getDashboardReport(period, customRange) {
+export function getDashboardRange(period, customRange, today = new Date()) {
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const current = iso(today);
   const ranges = {
-    week: { start: "2026-08-25", end: "2026-08-31", label: "This week" },
-    month: { start: "2026-08-01", end: "2026-08-31", label: "This month" },
-    lastMonth: { start: "2026-07-01", end: "2026-07-31", label: "Last month" },
-    year: { start: "2026-01-01", end: "2026-08-31", label: "This year" },
+    week: {
+      start: iso(new Date(year, month, today.getDate() - ((today.getDay() + 6) % 7))),
+      end: current,
+      label: "This week",
+    },
+    month: {
+      start: iso(new Date(year, month, 1)),
+      end: iso(new Date(year, month + 1, 0)),
+      label: "This month",
+    },
+    lastMonth: {
+      start: iso(new Date(year, month - 1, 1)),
+      end: iso(new Date(year, month, 0)),
+      label: "Last month",
+    },
+    year: { start: iso(new Date(year, 0, 1)), end: current, label: "This year" },
   };
-  const selected = period === "custom" && customRange ? { ...customRange, label: "Custom range" } : ranges[period] || ranges.month;
-  const dayCount = daysBetween(selected.start, selected.end);
-  const entries = dailySpending.filter(({ date }) => date >= selected.start && date <= selected.end);
-  const total = Number(entries.reduce((sum, entry) => sum + entry.amount, 0).toFixed(2));
-  const previousEnd = shiftDate(selected.start, -1);
-  const previousStart = shiftDate(previousEnd, 1 - dayCount);
-  const previousTotal = dailySpending.filter(({ date }) => date >= previousStart && date <= previousEnd).reduce((sum, entry) => sum + entry.amount, 0);
-  const comparison = previousTotal > 0 ? (total / previousTotal - 1) * 100 : null;
-  const monthly = dayCount > 45;
-  const points = monthly
-    ? Object.values(entries.reduce((months, entry) => {
-        const key = entry.date.slice(0, 7);
-        months[key] ||= { key, amount: 0 };
-        months[key].amount += entry.amount;
-        return months;
-      }, {})).map((entry) => ({ label: new Date(`${entry.key}-01T12:00:00`).toLocaleDateString("en-GB", { month: "short" }), amount: Number(entry.amount.toFixed(2)) }))
-    : entries.map((entry) => ({ label: new Date(`${entry.date}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" }), amount: entry.amount }));
+  return period === "custom" && customRange
+    ? { ...customRange, label: "Custom range" }
+    : ranges[period] || ranges.month;
+}
 
-  const chartData = points.map((point, index) => ({
-    ...point,
-    trend: Number((points.slice(Math.max(0, index - 4), index + 1).reduce((sum, item) => sum + item.amount, 0) / Math.min(index + 1, 5)).toFixed(2)),
+function budgetForRange(monthlyBudget, start, end) {
+  let budget = 0;
+  const cursor = asDate(start);
+  const last = asDate(end);
+  while (cursor <= last) {
+    const daysInMonth = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0)).getUTCDate();
+    budget += monthlyBudget / daysInMonth;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return budget;
+}
+
+export function buildDashboardReport(summary, range, monthlyBudget, today = new Date()) {
+  const dailyAmounts = new Map(summary.daily_expenses.map(({ date, total }) => [date, Number(total)]));
+  const dailyPoints = [];
+  const cursor = asDate(range.start);
+  const last = asDate(range.end);
+  while (cursor <= last) {
+    const date = cursor.toISOString().slice(0, 10);
+    dailyPoints.push({ date, amount: dailyAmounts.get(date) || 0 });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  const monthly = dailyPoints.length > 45;
+  const points = monthly
+    ? Array.from(dailyPoints.reduce((months, point) => {
+        const key = point.date.slice(0, 7);
+        months.set(key, (months.get(key) || 0) + point.amount);
+        return months;
+      }, new Map()), ([key, amount]) => ({
+        label: new Date(`${key}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" }),
+        amount: Number(amount.toFixed(2)),
+      }))
+    : dailyPoints.map((point) => ({
+        label: asDate(point.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }),
+        amount: point.amount,
+      }));
+
+  const todayKey = iso(today);
+  const elapsedEnd = range.end < todayKey ? range.end : todayKey;
+  const dayCount = Math.max(1, daysBetween(range.start, elapsedEnd));
+  const categoryBreakdown = summary.category_expenses.map(({ category, total }) => ({
+    name: category,
+    amount: Number(total),
+    color: (categoryColors[category] || categoryColors.Other).chart,
   }));
 
-  return { ...selected, dayCount, total, comparison, chartData, monthly, budget: 2000 * dayCount / 31, incomeFactor: dayCount / 31 };
+  return {
+    ...range,
+    total: Number(summary.total),
+    comparison: summary.period_over_period_percentage == null ? null : Number(summary.period_over_period_percentage),
+    chartData: points,
+    categoryBreakdown,
+    monthly,
+    dayCount,
+    budget: budgetForRange(monthlyBudget, range.start, range.end),
+  };
 }

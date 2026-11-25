@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import Button from "../components/ui/Button.jsx";
 import Input from "../components/ui/Input.jsx";
 import Select from "../components/ui/Select.jsx";
+import { logout } from "../api/authApi.js";
 
 const currencies = [
   { value: "GBP", label: "British pound (£)" },
@@ -11,9 +12,12 @@ const currencies = [
 ];
 export default function ProfilePage() {
   const { profile, updateProfile } = useOutletContext();
+  const navigate = useNavigate();
   const [draft, setDraft] = useState(profile);
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const fileInput = useRef(null);
   const change = (field, value) => {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -44,7 +48,7 @@ export default function ProfilePage() {
     }
   };
 
-  const save = (event) => {
+  const save = async (event) => {
     event.preventDefault();
     const nextErrors = {};
     if (!draft.firstName.trim()) nextErrors.firstName = "Enter your first name.";
@@ -52,19 +56,28 @@ export default function ProfilePage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) nextErrors.email = "Enter a valid email address.";
     if (!Number.isFinite(Number(draft.monthlyBudget)) || Number(draft.monthlyBudget) <= 0) nextErrors.monthlyBudget = "Enter a budget greater than zero.";
     if (!Number.isFinite(Number(draft.monthlySavingsGoal)) || Number(draft.monthlySavingsGoal) < 0) nextErrors.monthlySavingsGoal = "Enter a valid savings goal.";
-    if (!Number.isFinite(Number(draft.emergencyFund)) || Number(draft.emergencyFund) < 0) nextErrors.emergencyFund = "Enter a valid emergency fund amount.";
+    if (!Number.isFinite(Number(draft.emergencyFundTarget)) || Number(draft.emergencyFundTarget) <= 0) nextErrors.emergencyFundTarget = "Enter a target greater than zero.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    updateProfile({
-      ...draft,
-      firstName: draft.firstName.trim(),
-      lastName: draft.lastName.trim(),
-      email: draft.email.trim(),
-      monthlyBudget: Number(draft.monthlyBudget).toFixed(2),
-      monthlySavingsGoal: Number(draft.monthlySavingsGoal).toFixed(2),
-      emergencyFund: Number(draft.emergencyFund).toFixed(2),
-    });
-    setNotice("Changes saved in this browser.");
+    setSaving(true);
+    try {
+      await updateProfile({
+        ...draft,
+        firstName: draft.firstName.trim(),
+        lastName: draft.lastName.trim(),
+        email: draft.email.trim(),
+        monthlyBudget: Number(draft.monthlyBudget).toFixed(2),
+        monthlySavingsGoal: Number(draft.monthlySavingsGoal).toFixed(2),
+        emergencyFundTarget: Number(draft.emergencyFundTarget).toFixed(2),
+      });
+      setNotice("Changes saved.");
+      setDraft((current) => ({ ...current, currentPassword: "" }));
+    } catch (err) {
+      const responseError = err.response?.data?.error || err.response?.data?.errors;
+      setNotice(typeof responseError === "string" ? responseError : responseError ? Object.values(responseError).flat().join(" ") : "Could not save your changes. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cancel = () => {
@@ -72,6 +85,20 @@ export default function ProfilePage() {
     setErrors({});
     setNotice("");
     if (fileInput.current) fileInput.current.value = "";
+  };
+
+  const signOut = async () => {
+    setSigningOut(true);
+    setNotice("");
+    try {
+      await logout();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      if (error.response?.status === 401) navigate("/login", { replace: true });
+      else setNotice("Could not sign out. Check your connection and try again.");
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -106,6 +133,13 @@ export default function ProfilePage() {
           </div>
         </section>
 
+        {draft.email.trim().toLowerCase() !== profile.email.toLowerCase() && <section className="settings-card">
+          <div className="form-field">
+            <label className="label" htmlFor="email-change-password">Current password to change your email</label>
+            <Input id="email-change-password" type="password" autoComplete="current-password" value={draft.currentPassword || ""} maxLength={128} onChange={(event) => change("currentPassword", event.currentTarget.value)} />
+          </div>
+        </section>}
+
         <section className="settings-card" aria-labelledby="budget-title">
           <div className="settings-card-heading">
             <h2 id="budget-title">Budget, savings and currency</h2>
@@ -114,7 +148,7 @@ export default function ProfilePage() {
           <div className="settings-finance-columns">
             <div className="form-field"><label className="label" htmlFor="profile-budget">Monthly budget</label><div className="settings-budget-input"><span aria-hidden="true">{draft.currency === "EUR" ? "€" : draft.currency === "USD" ? "$" : "£"}</span><Input id="profile-budget" name="monthlyBudget" type="number" min="0.01" step="0.01" value={draft.monthlyBudget} invalid={!!errors.monthlyBudget} onChange={(event) => change("monthlyBudget", event.currentTarget.value)} /></div>{errors.monthlyBudget && <span className="settings-error">{errors.monthlyBudget}</span>}</div>
             <div className="form-field"><label className="label" htmlFor="profile-savings-goal">Monthly savings goal</label><div className="settings-budget-input"><span aria-hidden="true">{draft.currency === "EUR" ? "€" : draft.currency === "USD" ? "$" : "£"}</span><Input id="profile-savings-goal" name="monthlySavingsGoal" type="number" min="0" step="0.01" value={draft.monthlySavingsGoal} invalid={!!errors.monthlySavingsGoal} onChange={(event) => change("monthlySavingsGoal", event.currentTarget.value)} /></div>{errors.monthlySavingsGoal && <span className="settings-error">{errors.monthlySavingsGoal}</span>}</div>
-            <div className="form-field"><label className="label" htmlFor="profile-emergency-fund">Emergency fund</label><div className="settings-budget-input"><span aria-hidden="true">{draft.currency === "EUR" ? "€" : draft.currency === "USD" ? "$" : "£"}</span><Input id="profile-emergency-fund" name="emergencyFund" type="number" min="0" step="0.01" value={draft.emergencyFund} invalid={!!errors.emergencyFund} onChange={(event) => change("emergencyFund", event.currentTarget.value)} /></div>{errors.emergencyFund && <span className="settings-error">{errors.emergencyFund}</span>}</div>
+            <div className="form-field"><label className="label" htmlFor="profile-emergency-fund">Emergency fund target</label><div className="settings-budget-input"><span aria-hidden="true">{draft.currency === "EUR" ? "€" : draft.currency === "USD" ? "$" : "£"}</span><Input id="profile-emergency-fund" name="emergencyFundTarget" type="number" min="0.01" step="0.01" value={draft.emergencyFundTarget} invalid={!!errors.emergencyFundTarget} onChange={(event) => change("emergencyFundTarget", event.currentTarget.value)} /></div>{errors.emergencyFundTarget && <span className="settings-error">{errors.emergencyFundTarget}</span>}</div>
             <div className="form-field"><label className="label" htmlFor="profile-currency">Currency</label><Select id="profile-currency" name="currency" value={draft.currency} options={currencies} onChange={(event) => change("currency", event.currentTarget.value)} /></div>
           </div>
           
@@ -122,8 +156,9 @@ export default function ProfilePage() {
 
         <div className="settings-actions">
           {notice && <span className="settings-notice" role="status">{notice}</span>}
-          <Button type="button" variant="secondary" onClick={cancel}>Cancel</Button>
-          <Button type="submit">Save changes</Button>
+          <Button type="button" variant="secondary" onClick={cancel} disabled={saving || signingOut}>Cancel</Button>
+          <Button type="submit" className="settings-save-button" disabled={saving || signingOut}>{saving ? "Saving…" : "Save changes"}</Button>
+          <Button type="button" variant="secondary" onClick={signOut} disabled={saving || signingOut} title="Sign out on all devices">{signingOut ? "Signing out…" : "Sign out"}</Button>
         </div>
       </form>
     </div>

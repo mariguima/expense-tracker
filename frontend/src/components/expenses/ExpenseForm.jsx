@@ -4,11 +4,12 @@ import Input from "../ui/Input.jsx";
 import Select from "../ui/Select.jsx";
 import DatePicker from "../ui/DatePicker.jsx";
 import Icon from "../Icon.jsx";
+import { currencySymbol, loadProfile } from "../../data/profileSettings.js";
 
 const paymentOptions = [
-  { value: "Debit card", label: "Debit card" },
-  { value: "Credit card", label: "Credit card" },
-  { value: "Cash", label: "Cash" },
+  { value: "debit", label: "Debit card" },
+  { value: "credit", label: "Credit card" },
+  { value: "cash", label: "Cash" },
 ];
 
 const installmentOptions = [1, 2, 3, 4, 6, 12].map((value) => ({
@@ -16,8 +17,9 @@ const installmentOptions = [1, 2, 3, 4, 6, 12].map((value) => ({
   label: value === 1 ? "One-off" : String(value),
 }));
 
-export default function ExpenseForm({ form, categories, onChange, onSubmit }) {
+export default function ExpenseForm({ form, categories, onChange, onSubmit, submitting = false }) {
   const [errors, setErrors] = useState({});
+  const symbol = currencySymbol(loadProfile().currency);
 
   const updateField = (event) => {
     const { name } = event.target;
@@ -29,7 +31,7 @@ export default function ExpenseForm({ form, categories, onChange, onSubmit }) {
     event.preventDefault();
     const nextErrors = {};
     if (!String(form.amount).trim()) nextErrors.amount = "Please enter an amount.";
-    else if (!Number.isFinite(Number(form.amount)) || Number(form.amount) <= 0) nextErrors.amount = "Enter an amount greater than £0.";
+    else if (!Number.isFinite(Number(form.amount)) || Number(form.amount) <= 0) nextErrors.amount = `Enter an amount greater than ${symbol}0.`;
     if (!form.category) nextErrors.category = "Please choose a category.";
     if (!form.date) nextErrors.date = "Please choose a date.";
     if (!form.description.trim()) nextErrors.description = "Please add a description.";
@@ -60,7 +62,7 @@ export default function ExpenseForm({ form, categories, onChange, onSubmit }) {
         <label className="form-field expense-amount-field" htmlFor="expense-amount">
           <span className="label">Amount</span>
           <div className="amount-input-wrap">
-            <span>£</span>
+            <span>{symbol}</span>
             <Input id="expense-amount" name="amount" type="number" min="0.01" value={form.amount} onChange={updateField} placeholder="0.00" required invalid={!!errors.amount} describedBy={errors.amount ? "expense-amount-error" : undefined} />
           </div>
           {errors.amount && <span id="expense-amount-error" className="field-error" role="alert">{errors.amount}</span>}
@@ -91,7 +93,7 @@ export default function ExpenseForm({ form, categories, onChange, onSubmit }) {
           </label>
         </div>
 
-        <Button type="submit" className="add-expense-button"><Icon name="plus" size={18} /> Add expense</Button>
+        <Button type="submit" className="add-expense-button" disabled={submitting}><Icon name="plus" size={18} /> {submitting ? "Adding…" : "Add expense"}</Button>
       </form>
     </section>
   );

@@ -1,13 +1,15 @@
 import { useState } from "react";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
+import { requestPasswordReset } from "../../api/authApi.js";
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [processing, setProcessing] = useState(false);
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
     const emailField = event.currentTarget.elements.namedItem("email");
 
@@ -24,7 +26,16 @@ export default function ForgotPasswordForm() {
     }
 
     setError("");
-    setNotice("Password reset emails are not available yet.");
+    setNotice("");
+    setProcessing(true);
+    try {
+      const result = await requestPasswordReset(email.trim());
+      setNotice(result.message);
+    } catch (err) {
+      setError(err.response?.data?.error || "Could not send a reset link. Please try again.");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -40,13 +51,14 @@ export default function ForgotPasswordForm() {
           placeholder="you@example.com"
           autoComplete="email"
           required
+          disabled={processing}
           invalid={!!error}
           describedBy={error ? "reset-email-error" : undefined}
         />
         {error && <span className="auth-field-error" id="reset-email-error" role="alert">{error}</span>}
       </div>
-      <Button className="auth-submit" type="submit">Send reset link<span aria-hidden="true">→</span></Button>
-      {notice && <p className="auth-reset-notice" role="status">{notice}</p>}
+      <Button className="auth-submit" type="submit" disabled={processing}>{processing ? "Sending…" : "Send reset link"}<span aria-hidden="true">→</span></Button>
+      {notice && <p className="auth-reset-notice" role="status">{notice} Check your inbox and spam folder. The link expires in 30 minutes.</p>}
     </form>
   );
 }

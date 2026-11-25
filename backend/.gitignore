@@ -1,2 +1,5 @@
 .env
-__py__cache/
+__pycache__/
+.env.*
+!.env.example
+!.env.production.example

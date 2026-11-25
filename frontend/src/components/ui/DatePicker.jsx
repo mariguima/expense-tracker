@@ -20,13 +20,6 @@ export default function DatePicker({ id, name, value, onChange, required = false
       isRequired={required}
       isInvalid={invalid}
       aria-describedby={describedBy}
-      onOpenChange={(isOpen) => {
-        if (!isOpen) return;
-        const bottom = document.getElementById(id)?.getBoundingClientRect().bottom;
-        if (bottom == null) return;
-        const needed = bottom + 340 - window.innerHeight;
-        if (needed > 0) window.scrollBy(0, needed);
-      }}
       size="sm"
     />
   );

@@ -14,9 +14,9 @@
 
 :root {
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  font-synthesis: none;
   color: #302d30;
   background: #f8f7f6;
-  font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --ink: #302d30;

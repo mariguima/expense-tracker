@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, useOutletContext } from "react-router-dom";
 import Button from "../components/ui/Button.jsx";
 import CategoryExpensesChart from "../components/dashboard/CategoryExpensesChart.jsx";
 import ExpensesChart from "../components/dashboard/ExpensesChart.jsx";
 import SummaryCard from "../components/dashboard/SummaryCards.jsx";
 import SavingsCard from "../components/dashboard/SavingsCard.jsx";
 import ExpenseDateRangeFilter from "../components/expenses/ExpenseDateRangeFilter.jsx";
-import { getDashboardReport, money } from "../data/dashboardData.js";
+import { buildDashboardReport, getDashboardRange, money } from "../data/dashboardData.js";
+import { getSavingsSummary, getSummary } from "../api/expenseApi.js";
 
 const periods = [
   { value: "week", label: "This week" },
@@ -19,9 +20,32 @@ export default function DashboardPage() {
   const { profile } = useOutletContext();
   const [period, setPeriod] = useState("month");
   const [customRange, setCustomRange] = useState(null);
-  const report = getDashboardReport(period, customRange);
-  const monthlyBudget = Number(profile.monthlyBudget);
-  const budget = period === "month" && monthlyBudget > 0 ? monthlyBudget : report.budget;
+  const [request, setRequest] = useState(null);
+  const [retry, setRetry] = useState(0);
+  const range = getDashboardRange(period, customRange);
+  const requestKey = `${period}:${range.start}:${range.end}:${retry}`;
+  useEffect(() => {
+    let active = true;
+    const params = period === "month" || period === "lastMonth"
+      ? { month: Number(range.start.slice(5, 7)), year: Number(range.start.slice(0, 4)) }
+      : { start: range.start, end: range.end };
+    Promise.all([getSummary(params), getSavingsSummary(range.end)])
+      .then(([summary, savings]) => { if (active) setRequest({ key: requestKey, data: { summary, savings } }); })
+      .catch((error) => { if (active) setRequest({ key: requestKey, error }); });
+    return () => { active = false; };
+  }, [period, range.start, range.end, requestKey]);
+
+  if (request?.key === requestKey && request.error?.response?.status === 401) return <Navigate to="/login" replace />;
+  if (request?.key !== requestKey || request.error) {
+    return <div className="dashboard-redesign">
+      {request?.key === requestKey
+        ? <div className="dashboard-chart-empty" role="alert">Could not load your dashboard. <Button variant="tertiary" onClick={() => setRetry((current) => current + 1)}>Try again</Button></div>
+        : <div className="dashboard-chart-empty" role="status">Loading your dashboard…</div>}
+    </div>;
+  }
+
+  const report = buildDashboardReport(request.data.summary, range, Number(profile.monthlyBudget));
+  const budget = report.budget;
   const budgetUsed = budget ? report.total / budget * 100 : 0;
   const comparison = report.comparison == null ? "—" : `${report.comparison > 0 ? "+" : "−"}${Math.abs(report.comparison).toFixed(1)}%`;
 
@@ -46,8 +70,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="dashboard-bottom-grid">
-        <CategoryExpensesChart total={report.total} />
-        <SavingsCard report={report} monthlySavingsGoal={period === "month" ? Number(profile.monthlySavingsGoal) : null} emergencyFund={Number(profile.emergencyFund) || 0} />
+        <CategoryExpensesChart total={report.total} categories={report.categoryBreakdown} />
+        <SavingsCard report={report} period={period} monthlySavingsGoal={Number(profile.monthlySavingsGoal)} savings={request.data.savings} emergencyFundTarget={Number(profile.emergencyFundTarget) || 5000} />
       </div>
     </div>
   );

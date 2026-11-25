@@ -160,13 +160,13 @@
 }
 
 .dashboard-redesign { max-width: 1320px; }
-.dashboard-period-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; border-bottom: 1px solid #eae6e5; }
-.dashboard-period-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 19px; }
-.dashboard-redesign .dashboard-period-tab { min-height: 34px; padding: 0 0 8px; border-bottom: 2px solid transparent; border-radius: 0; color: #777075; font: 600 10px/1.3 'DM Sans', 'Segoe UI', sans-serif; }
+.dashboard-period-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; margin-bottom: 12px; border-bottom: 1px solid #eae6e5; }
+.dashboard-period-tabs { display: flex; flex: 0 1 auto; flex-wrap: nowrap; align-items: center; gap: 19px; min-width: 0; }
+.dashboard-redesign .dashboard-period-tab { flex: 0 0 auto; width: auto; min-height: 34px; padding: 0 0 8px; border-bottom: 2px solid transparent; border-radius: 0; color: #777075; font: 600 10px/1.3 'DM Sans', 'Segoe UI', sans-serif; }
 .dashboard-redesign .dashboard-period-tab:hover { background: transparent; color: var(--rose-deep); }
 .dashboard-redesign .dashboard-period-tab.is-active { border-bottom-color: var(--rose-deep); color: #252126; }
 .dashboard-redesign .dashboard-period-tab > [data-text] { padding: 0; }
-.dashboard-custom-range { width: 150px; flex: 0 0 auto; }
+.dashboard-redesign .dashboard-custom-range { width: 150px; flex: 0 0 150px; margin-left: auto; }
 .dashboard-custom-range .expense-range-trigger { justify-content: flex-end; border: 0; background: transparent; color: #675f64; }
 .dashboard-custom-range .expense-range-trigger.is-active { color: var(--rose-deep); }
 .dashboard-top-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(220px, .95fr); gap: 13px; margin-bottom: 13px; }
@@ -239,10 +239,20 @@
 }
 
 @media (max-width: 700px) {
-  .dashboard-period-row { align-items: flex-start; flex-wrap: wrap; }
-  .dashboard-period-tabs { gap: 13px; }
-  .dashboard-custom-range { margin-left: auto; }
+  .dashboard-period-row { align-items: center; }
+  .dashboard-period-tabs { gap: 8px; }
+  .dashboard-redesign .dashboard-period-tab { font-size: 9px; }
+  .dashboard-redesign .dashboard-custom-range { width: 112px; flex-basis: 112px; }
   .dashboard-chart-panel { padding-inline: 13px; }
   .dashboard-bottom-grid { grid-template-columns: 1fr; }
   .dashboard-savings-panel { min-height: 350px; }
+}
+
+@media (max-width: 480px) {
+  .dashboard-period-row { gap: 6px; }
+  .dashboard-period-tabs { gap: 5px; }
+  .dashboard-redesign .dashboard-period-tab { font-size: 8px; }
+  .dashboard-redesign .dashboard-custom-range { width: 94px; flex-basis: 94px; }
+  .dashboard-custom-range .expense-range-trigger { gap: 3px; padding-inline: 4px; font-size: 8px; }
+  .dashboard-custom-range .expense-range-trigger svg { width: 12px; height: 12px; }
 }

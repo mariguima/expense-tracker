@@ -1,12 +1,12 @@
+from calendar import monthrange
 from datetime import date as date_type
-from decimal import Decimal, InvalidOperation
 
 from marshmallow import ValidationError
 from flask import jsonify, request, Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.expense import Expense
 from app import db
-from app.utils.expense_helpers import applies_to_month, get_installment_date, calculate_monthly_total, get_expense_amount_for_month, get_expenses_until_month
+from app.utils.summary import build_summary
 from app.schemas.expense_schema import ExpenseCreateSchema, ExpenseSchema, ExpenseUpdateSchema
 
 expense_bp = Blueprint("expense", __name__)
@@ -92,126 +92,34 @@ def delete_expense(expense_id):
 @jwt_required()
 def get_summary():
     user_id = int(get_jwt_identity())
-    month = request.args.get("month", type=int)
-    year = request.args.get("year", type=int)
+    start_value = request.args.get("start")
+    end_value = request.args.get("end")
 
-    if month is None or year is None:
-        return jsonify({"error": "Month and year are required"}), 400
-
-    if month < 1 or month > 12:
-        return jsonify({"error": "Month must be between 1 and 12"}), 400
-
-    start_date = date_type(year, month, 1)
-    if month == 12:
-        end_date = date_type(year + 1, 1, 1)
+    if start_value is not None or end_value is not None:
+        if not start_value or not end_value:
+            return jsonify({"error": "Start and end dates are required"}), 400
+        try:
+            start = date_type.fromisoformat(start_value)
+            end = date_type.fromisoformat(end_value)
+        except ValueError:
+            return jsonify({"error": "Dates must use YYYY-MM-DD"}), 400
+        calendar_month = False
     else:
-        end_date = date_type(year, month + 1, 1)
+        month = request.args.get("month", type=int)
+        year = request.args.get("year", type=int)
+        if month is None or year is None:
+            return jsonify({"error": "Month and year, or start and end dates, are required"}), 400
+        if not 1 <= month <= 12 or not 1900 <= year <= 9998:
+            return jsonify({"error": "Invalid month or year"}), 400
+        start = date_type(year, month, 1)
+        end = date_type(year, month, monthrange(year, month)[1])
+        calendar_month = True
 
-    if month == 1:
-        previous_month = 12
-        previous_month_year = year - 1
-    else:
-        previous_month = month - 1
-        previous_month_year = year
-    previous_month_end_date = start_date
+    if start.year < 1900 or end.year > 9998 or end < start or (end - start).days > 3660:
+        return jsonify({"error": "Choose a valid range of up to 10 years"}), 400
 
-    year_start_date = date_type(year, 1, 1)
-    year_end_date = date_type(year + 1, 1, 1)
-
-    # get total amount spent in the month, including active credit installments
-    monthly_total = calculate_monthly_total(Expense, user_id, end_date, year, month)
-    expenses_for_monthly_total = get_expenses_until_month(Expense, user_id, end_date)
-
-
-    # get previous month total expenses and credit installments
-    previous_month_total = calculate_monthly_total(Expense, user_id, previous_month_end_date, previous_month_year, previous_month)
-
-
-    # get daily totals for the selected month, including credit installment dates
-    expenses_for_daily_totals = get_expenses_until_month(Expense, user_id, end_date)
-    daily_totals = {}
-    for expense in expenses_for_daily_totals:
-        if expense.payment_type.lower() == "credit":
-            installment_amount = expense.amount / expense.number_of_installments
-
-            for installment_index in range(expense.number_of_installments):
-                installment_date = get_installment_date(expense.date, installment_index)
-
-                if start_date <= installment_date < end_date:
-                    daily_totals[installment_date] = (
-                        daily_totals.get(installment_date, Decimal("0")) + installment_amount
-                    )
-        elif start_date <= expense.date < end_date:
-            daily_totals[expense.date] = daily_totals.get(expense.date, Decimal("0")) + expense.amount
-
-    daily_expenses = [
-        {
-            "date": expense_date.isoformat(),
-            "total": str(total),
-        }
-        for expense_date, total in sorted(daily_totals.items())
-    ]
-
-    monthly_totals_by_month = {month_number: Decimal("0") for month_number in range(1, 13)}
-    expenses_for_yearly_totals = get_expenses_until_month(Expense, user_id, year_end_date)
-
-    for expense in expenses_for_yearly_totals:
-        if expense.payment_type.lower() == "credit":
-            installment_amount = expense.amount / expense.number_of_installments
-
-            for installment_index in range(expense.number_of_installments):
-                installment_date = get_installment_date(expense.date, installment_index)
-
-                if year_start_date <= installment_date < year_end_date:
-                    monthly_totals_by_month[installment_date.month] += installment_amount
-        elif year_start_date <= expense.date < year_end_date:
-            monthly_totals_by_month[expense.date.month] += expense.amount
-
-    monthly_expenses = [
-        {
-            "month": month_number,
-            "total": str(total),
-        }
-        for month_number, total in monthly_totals_by_month.items()
-    ]
-
-    if previous_month_total == 0:
-        month_over_month_percentage = None
-    else:
-        month_over_month_percentage = ((monthly_total - previous_month_total) / previous_month_total) * 100
-
-    # get each category total for the selected month, including credit installments
-    category_totals = {}
-    for expense in expenses_for_monthly_total:
-        if not applies_to_month(expense, year, month):
-            continue
-
-        amount = get_expense_amount_for_month(expense)
-        category_totals[expense.category] = (
-            category_totals.get(expense.category, Decimal("0")) + amount
-        )
-
-    category_expenses = [
-        {
-            "category": category,
-            "total": str(total),
-        }
-        for category, total in sorted(
-            category_totals.items(),
-            key=lambda category_total: category_total[1],
-            reverse=True,
-        )
-    ]
-
-    return jsonify({
-        "month": month,
-        "year": year,
-        "total": str(monthly_total),
-        "daily_expenses": daily_expenses,
-        "monthly_expenses": monthly_expenses,
-        "previous_month_total": str(previous_month_total),
-        "month_over_month_percentage": (
-            None if month_over_month_percentage is None else str(month_over_month_percentage)
-        ),
-        "category_expenses": category_expenses
-    }), 200
+    result = build_summary(user_id, start, end, calendar_month)
+    if calendar_month:
+        result["month"] = start.month
+        result["year"] = start.year
+    return jsonify(result), 200

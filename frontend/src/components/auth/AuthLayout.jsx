@@ -1,9 +1,9 @@
 import authSpreadsheet from "../../assets/auth-spreadsheet.jpg";
 import { Link } from "react-router-dom";
 
-export default function AuthLayout({ title, description, beforeTitle, children }) {
+export default function AuthLayout({ title, description, beforeTitle, children, className = "" }) {
   return (
-    <div className="auth-page">
+    <div className={`auth-page ${className}`.trim()}>
       <section className="auth-main">
         <div className="auth-brand-row">
           <Link className="brand" to="/login">Expense Tracker</Link>

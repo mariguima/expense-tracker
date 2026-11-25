@@ -5,7 +5,7 @@ import Icon from "../Icon.jsx";
 
 const PAGE_SIZE = 10;
 
-export default function ExpenseList({ filteredExpenses, page, onPageChange, search, onSearchChange, categoryFilter, onCategoryFilterChange, dateRange, onDateRangeChange, categories, onEdit, onDelete }) {
+export default function ExpenseList({ filteredExpenses, loading, loadFailed, page, onPageChange, search, onSearchChange, categoryFilter, onCategoryFilterChange, dateRange, onDateRangeChange, categories, onEdit, onDelete }) {
   const pageCount = Math.max(1, Math.ceil(filteredExpenses.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const start = (currentPage - 1) * PAGE_SIZE;
@@ -24,7 +24,7 @@ export default function ExpenseList({ filteredExpenses, page, onPageChange, sear
           <thead><tr><th scope="col">DESCRIPTION</th><th scope="col">CATEGORY</th><th scope="col">PAYMENT</th><th scope="col" className="amount-column">AMOUNT</th><th scope="col" className="expense-actions-cell"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {visibleExpenses.map((expense) => <ExpenseItem key={expense.id} expense={expense} onEdit={onEdit} onDelete={onDelete} />)}
-            {!filteredExpenses.length && <tr><td colSpan="5" className="empty-table">No expenses match those filters.</td></tr>}
+            {!filteredExpenses.length && <tr><td colSpan="5" className="empty-table">{loading ? "Loading expenses…" : loadFailed ? "Expenses could not be loaded." : "No expenses match those filters."}</td></tr>}
           </tbody>
         </table>
       </div>

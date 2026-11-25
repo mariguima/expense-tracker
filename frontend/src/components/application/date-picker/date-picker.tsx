@@ -43,7 +43,7 @@ export const DatePicker = ({ value: valueProp, defaultValue, onChange, onApply, 
             <AriaPopover
                 offset={8}
                 placement="bottom start"
-                shouldFlip={false}
+                shouldFlip
                 containerPadding={12}
                 className={({ isEntering, isExiting }) =>
                     cx(
@@ -61,7 +61,7 @@ export const DatePicker = ({ value: valueProp, defaultValue, onChange, onApply, 
                             <div className="flex px-3 py-2">
                                 <Calendar highlightedDates={highlightedDates} />
                             </div>
-                            <div className="grid grid-cols-2 gap-2 border-t border-secondary p-2">
+                            <div className="app-date-footer grid grid-cols-2 gap-2 border-t border-secondary p-2">
                                 <Button
                                     size="sm"
                                     color="secondary"

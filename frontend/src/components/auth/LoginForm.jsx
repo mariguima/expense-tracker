@@ -15,6 +15,7 @@ export default function LoginForm({ onLoginSuccess }) {
     setError(null);
     try {
       const data = await login({ email, password });
+      setPassword("");
       onLoginSuccess?.(data);
     } catch (err) {
       const responseError = err.response?.data?.error || err.response?.data?.errors;
@@ -35,7 +36,7 @@ export default function LoginForm({ onLoginSuccess }) {
         <Input id="password" name="password" type="password" value={password} required disabled={processing} autoComplete="current-password" placeholder="Enter your password" onChange={(event) => setPassword(event.currentTarget.value)} />
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <Button className="auth-submit" type="submit" disabled={processing}>{processing ? "Signing you in…" : "Sign in"}<span aria-hidden="true">→</span></Button>
+      <Button className="auth-submit" type="submit" disabled={processing}>{processing ? "Signing you in…" : "Sign in"}</Button>
     </form>
   );
 }

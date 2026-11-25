@@ -1,16 +1,34 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, NavLink, Outlet } from "react-router-dom";
 import Icon from "../Icon.jsx";
 import Button from "../ui/Button.jsx";
-import { loadProfile, saveProfile } from "../../data/profileSettings.js";
+import { loadProfile, saveAccountProfile, saveProfile, toProfilePayload } from "../../data/profileSettings.js";
+import { getProfile, patchProfile } from "../../api/authApi.js";
+import { clearLegacySession } from "../../api/authSession.js";
 
 export default function PageLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profile, setProfile] = useState(loadProfile);
-  const updateProfile = (nextProfile) => {
-    saveProfile(nextProfile);
-    setProfile(nextProfile);
+  const [loadState, setLoadState] = useState("loading");
+  useEffect(() => {
+    clearLegacySession();
+    let active = true;
+    getProfile().then((data) => {
+      if (!active) return;
+      setProfile(saveAccountProfile(data.user, data.financial_settings));
+      setLoadState("ready");
+    }).catch((error) => { if (active) setLoadState(error.response?.status === 401 ? "signed-out" : "error"); });
+    return () => { active = false; };
+  }, []);
+  const updateProfile = async (nextProfile) => {
+    const data = await patchProfile(toProfilePayload(nextProfile));
+    const saved = { ...saveAccountProfile(data.user, data.financial_settings), photo: nextProfile.photo };
+    saveProfile(saved);
+    setProfile(saved);
   };
+  if (loadState === "signed-out") return <Navigate to="/login" replace />;
+  if (loadState === "loading") return <div className="route-status" role="status">Loading your account…</div>;
+  if (loadState === "error") return <div className="route-status" role="alert">Could not load your account. <Link to="/login">Sign in again</Link>.</div>;
   const displayName = `${profile.firstName} ${profile.lastName}`.trim();
 
   return (

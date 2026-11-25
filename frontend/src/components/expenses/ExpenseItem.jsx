@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Icon from "../Icon.jsx";
 import { categoryColors } from "../../data/categoryColors.js";
+import { money } from "../../data/dashboardData.js";
 
-const money = (amount) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(Number(amount) || 0);
 const prettyDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const paymentLabel = (paymentType) => ({ credit: "Credit card", debit: "Debit card", cash: "Cash" }[String(paymentType).toLowerCase()] || paymentType);
 
 export default function ExpenseItem({ expense, onEdit, onDelete }) {
   const palette = categoryColors[expense.category] || categoryColors.Other;
@@ -51,7 +52,7 @@ export default function ExpenseItem({ expense, onEdit, onDelete }) {
     <tr className="expense-item">
       <td><div className="expense-item-description"><strong>{expense.description}</strong><span>{prettyDate(expense.date)}</span></div></td>
       <td><span className="category-chip" style={{ backgroundColor: palette.background, color: palette.foreground }}>{expense.category}</span></td>
-      <td className="payment-cell">{expense.payment_type}</td>
+      <td className="payment-cell">{paymentLabel(expense.payment_type)}</td>
       <td className="amount-column table-amount">−{money(expense.amount)}</td>
       <td className="expense-actions-cell">
         <button ref={triggerRef} type="button" className="expense-actions-trigger" aria-label={`Actions for ${expense.description}`} aria-haspopup="menu" aria-expanded={!!menu} onMouseEnter={openMenu} onMouseLeave={delayClose} onFocus={openMenu} onClick={openMenu} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); openMenu(); requestAnimationFrame(() => menuRef.current?.querySelector("button")?.focus()); } }}><Icon name="verticalDots" size={16} /></button>

@@ -22,6 +22,40 @@
 
 .auth-name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+.signup-step-top { margin-bottom: 13px; }
+
+.signup-back { display: inline-flex; align-items: center; margin: 0 0 16px; padding: 0; border: 0; background: transparent; color: #c83e56; font-size: 10px; font-weight: 700; cursor: pointer; }
+
+.signup-back:hover { text-decoration: underline; }
+
+.signup-progress-row { display: flex; align-items: center; gap: 7px; color: #7b7075; font-size: 8px; font-weight: 700; letter-spacing: .9px; }
+
+.signup-progress { display: inline-flex; gap: 3px; }
+
+.signup-progress i { display: block; width: 23px; height: 3px; border-radius: 3px; background: #eadde0; }
+
+.signup-progress i.is-complete { background: #ce3e56; }
+
+.signup-money-form .app-select > button, .signup-money-form .app-input-shell, .signup-money-form .app-input { height: 39px; min-height: 39px; }
+
+.signup-money-form .app-input { font-size: 11px; }
+
+.signup-money-form .form-field small { color: #93898d; font-size: 8px; line-height: 1.4; }
+
+.signup-money-input { position: relative; }
+
+.signup-money-input > span { position: absolute; z-index: 1; top: 50%; left: 11px; transform: translateY(-50%); color: #756c70; font-size: 11px; pointer-events: none; }
+
+.signup-money-form .signup-money-input .app-input { padding-left: 35px; appearance: textfield; -moz-appearance: textfield; }
+
+.signup-money-input .app-input::-webkit-inner-spin-button, .signup-money-input .app-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+.signup-money-form .auth-switch { margin: 0; }
+
+.signup-skip { padding: 0; border: 0; background: transparent; color: #c83e56; font-size: inherit; font-weight: 700; cursor: pointer; }
+
+.signup-skip:hover { text-decoration: underline; }
+
 .auth-form .form-field { gap: 6px; }
 
 .auth-form .label { color: #615a5e; font-size: 10px; }
@@ -61,6 +95,12 @@
 .auth-back-link span { font-size: 14px; font-weight: 400; }
 
 .auth-field-error, .auth-reset-notice { margin: 2px 0 0; color: var(--rose-deep); font-size: 10px; line-height: 1.4; }
+.auth-success { margin: 18px 0 0; color: #246e4d; font-size: 11px; line-height: 1.5; }
+.auth-page--reset .auth-card-wrap { max-width: 344px; margin: clamp(70px, 15vh, 100px) 0 40px; }
+.auth-page--reset .auth-copy h1 { font-size: clamp(36px, 4vw, 42px); line-height: 1.02; }
+.auth-page--reset .auth-copy p { max-width: 320px; font-size: 11px; line-height: 1.7; }
+.auth-reset-form { gap: 13px; margin-top: 25px; }
+.auth-reset-form .auth-submit { height: 39px; margin-top: 13px; border-radius: 7px; }
 
 .auth-form .form-field:has(.auth-field-error) .app-input-shell { border-color: var(--rose-deep); }
 
@@ -149,6 +189,7 @@
   .auth-copy h1 { font-size: 38px; }
   .auth-submit { height: 40px; }
   .auth-art { display: none; }
+  .auth-page--reset .auth-card-wrap { max-width: 344px; margin: auto; }
 }
 
 @media (max-width: 390px) {
