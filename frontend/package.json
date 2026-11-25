@@ -14,7 +14,7 @@
     "@react-stately/utils": "^3.12.1",
     "@tailwindcss/vite": "^4.3.5",
     "@untitledui/icons": "^0.0.23",
-    "axios": "^1.20.0",
+    "axios": "^1.21.1",
     "input-otp": "^1.5.0",
     "react": "^19.2.8",
     "react-aria": "^3.53.1",
